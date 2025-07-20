@@ -2,7 +2,7 @@
 pandas==2.3.1          
 pyarrow==20.0.0        
 openpyxl==3.1.5        
-numpy>=1.26            
+numpy>=1.26          
 
 # ─────────────── Descarga de datasets (Kaggle) ───────────────
 kaggle==1.7.4.5        

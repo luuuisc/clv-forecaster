@@ -27,3 +27,6 @@ build/
 
 # Mac OS
 .DS_Store
+
+# Archivo CSV
+*.csv

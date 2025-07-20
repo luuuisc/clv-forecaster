@@ -6,7 +6,7 @@ Desarrollar un sistema **end-to-end** que calcule y exponga el **Customer Lifeti
 El entregable incluye:
 
 1. **ETL reproducible** que limpia y consolida las transacciones históricas.  
-2. **Modelos de CLV** (Pareto/NBD + XGBoost de supervivencia opcional) registrados en MLflow.  
+2. **Modelos de CLV** (Pareto/NBD) registrados en MLflow.  
 3. **Servicio FastAPI / Docker** con el endpoint `/predict_clv` para integrarse a CRM, ESP o BI.  
 4. **Dashboard Streamlit/Plotly** para explorar cohortes y segmentos de valor.
 
@@ -57,8 +57,7 @@ Exporta `data/processed/clv.parquet` comprimido con **Snappy**.
 UCI Machine Learning Repository → *Online Retail II* (transacción real de un e-commerce británico)  [UCI Machine Learning Repository](https://archive.ics.uci.edu/ml/datasets/online%2Bretail%2BII?utm_source=chatgpt.com)
 
 **Volumen**  
-≈ 1,067,000 filas (líneas de producto) × 8 columnas, cubriendo **01-dic-2009 → 09-dic-2011**. Cada fila registra un artículo dentro de una factura; una misma factura puede generar varias filas.  [UCI Machine Learning Repository](https://archive.ics.uci.edu/ml/datasets/online%2Bretail%2BII?utm_source=chatgpt.com) 
-[Kaggle](https://www.kaggle.com/datasets/mathchi/online-retail-ii-data-set-from-ml-repository?utm_source=chatgpt.com)
+≈ 1,067,000 filas (líneas de producto) × 8 columnas, cubriendo **01-dic-2009 → 09-dic-2011**. Cada fila registra un artículo dentro de una factura; una misma factura puede generar varias filas. 
 
 ### Esquema de columnas
 
@@ -80,7 +79,7 @@ UCI Machine Learning Repository → *Online Retail II* (transacción real de un 
 3. **Clientes anónimos** – Ausencia de `CustomerID` impide calcular métricas de retención; se recomienda descartarlos o imputar con un placeholder.  
 4. **Moneda** – Todos los importes están en **GBP**; convierte a tu divisa si planeas mezclar con otras fuentes.  
 5. **Temporización** – Ventana de casi 2 años permite análisis de **cohortes** y modelos de recencia-frecuencia.  
-6. **Almacenamiento** – Disponible en `.csv` (~117 MB) y `.xlsx` (dos hojas: *Year 2009-2010*, *Year 2010-2011*). El CSV facilita lecturas en *streaming* y evita dependencias de Excel.  [oai_citation:4‡Medium](https://medium.com/data-science/preprocessing-large-datasets-online-retail-data-with-500k-instances-3f24141f511?utm_source=chatgpt.com)  
+6. **Almacenamiento** – Disponible en `.csv` (~117 MB) y `.xlsx` (dos hojas: *Year 2009-2010*, *Year 2010-2011*). El CSV facilita lecturas en *streaming* y evita dependencias de Excel.  [Preprocessing Large Datasets: Online Retail Data with 500k+ Instances](https://medium.com/data-science/preprocessing-large-datasets-online-retail-data-with-500k-instances-3f24141f511)  
 7. **Calidad** – Existen duplicados de línea exactos y descripciones vacías; conviene aplicar `drop_duplicates()` y `fillna('Unknown')`.
 
 ### Uso típico en proyectos CLV
@@ -125,29 +124,22 @@ clv-forecaster/
 │   ├── raw/              # zip original de Kaggle
 │   └── processed/        # .parquet limpio
 ├── notebooks/
+│   ├── mlruns 
 │   ├── etl_clv.ipynb     # limpieza y feature engineering
 │   └── model_pareto.ipynb
+├── models/
+│   ├── bgf.pkl
+│   └── ggf.pkl
 ├── src/
-│   ├── __init__.py
-│   ├── data/
-│   │   ├── load.py
-│   │   └── preprocess.py
-│   ├── models/
-│   │   ├── pareto_nbd.py
-│   │   └── xgb_survival.py
+│   ├── __pycache__/ 
 │   └── api/
 │       └── main.py       # FastAPI app
 ├── tests/
-│   ├── test_data.py
-│   └── test_models.py
+│   ├── __pycache__/
+│   ├── test_api.py
 ├── docker/
 │   ├── Dockerfile
-│   └── docker-compose.yml
-└── .github/
-    └── workflows/
-        └── ci.yml        # lint + tests + build
 ```
-
 
 ## Instalación rápida
 
@@ -163,44 +155,132 @@ Requisitos mínimos
 - pip ≥ 22
 - RAM 4 GB (el dataset cabe cómodamente)
 
-## Uso rápido
+## Estructura de carpetas y archivos
 
-1.	ETL
+| Ruta / archivo | Contenido | Para qué se usa |
+|----------------|-----------|-----------------|
+| `data/raw/online_retail_II.csv` (✗ git) | Dataset original descargado de Kaggle | Fuente única de verdad. Se mantiene fuera de Git. |
+| `data/processed/clv.parquet` | Datos limpios (ventas positivas, tipos correctos) | Input estándar para todos los modelos y dashboards. |
+| `data/processed/clv_predictions.parquet` | Tabla final con `frequency`, `recency`, `T`, `monetary`, `clv_6m` | What-if rápido y dashboard. |
+| `notebooks/etl_clv.ipynb` | Código + docs de limpieza **ETL** | Genera `clv.parquet`. |
+| `notebooks/model_pareto_nbd.ipynb` | Entrena **BetaGeo** y **GammaGamma**, calcula CLV, registra en MLflow | Prototipo de modelado. |
+| `mlruns/` (✗ git) | Experimentos MLflow | Runs, parámetros, métricas, artefactos. |
+| `models/` <br>  • `bgf.pkl` <br>  • `ggf.pkl` | Modelos serializados con `joblib` | Cargados por la API para predicción on-line. |
+| `src/api/main.py` | Servicio **FastAPI** con endpoint `/predict_clv` | Integra los modelos a CRM/ESP/BI. |
+| `requirements.txt` | Dependencias fijadas | Reproducibilidad. |
+| `README.md` | Visión, glosario, pasos, estructura | Documentación viva. |
+| `.gitignore` | Excluye datasets brutos, artefactos MLflow, venv | Repo limpio y ligero. |
 
-    ```bash
-    jupyter notebook notebooks/etl_clv.ipynb
-    ```
+### Flujo de trabajo end-to-end
 
-2. Entrenamiento + tracking
+```
+CSV bruto  ──▶  etl_clv.ipynb  ──▶  clv.parquet
+                               │
+                               ▼
+                model_pareto_nbd.ipynb  (RFM + BetaGeo + GammaGamma)
+                               │
+                               ▼
+                    clv_predictions.parquet
+                               │
+                               ▼
+                   mlflow run + artefactos
+                               │
+                               ▼
+            FastAPI /predict_clv  →  CRM / ESP / BI
+```
 
-    ```bash
-    python -m src.models.pareto_nbd train
-    mlflow ui
-    ```
+## Uso del modelo
 
-3. API local
+#### 1. Clonar y crear venv
+```bash
+git clone https://github.com/tu-usuario/clv-forecaster.git && cd clv-forecaster
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+```
 
-    ```bash
-    uvicorn src.api.main:app --reload
-    ```
+#### 2. Colocar CSV bruto (o usar Kaggle API)
+```bash
+mkdir -p data/raw && cp /tu/ruta/online_retail_II.csv data/raw/
+```
 
-4. Dashboard
+#### 3. Ejecutar ETL
+```bash
+jupyter nbconvert --to notebook --execute notebooks/etl_clv.ipynb
+```
 
-    ```bash
-    streamlit run dashboards/clv_dashboard.py
-    ```
+#### 4. Entrenar modelo
+```bash
+jupyter nbconvert --to notebook --execute notebooks/model_pareto_nbd.ipynb
+```
 
-## Principales dependencias
+#### 5. Servir API
+```bash
+uvicorn src.api.main:app --host 0.0.0.0 --port 8000
+```
 
-| Categoría                 | Paquete(s)                         | Propósito Principal                                                      |
-| :------------------------ | :--------------------------------- | :----------------------------------------------------------------------- |
-| **Análisis de Datos**     | `pandas`, `pyarrow`                | Manipulación de datos y lectura/escritura eficiente en formato Parquet.    |
-| **Modelado CLV**          | `lifetimes`, `xgboost`             | Implementación de modelos probabilísticos (Pareto/NBD) y de supervivencia. |
-| **MLOps**                 | `mlflow`                           | Seguimiento de experimentos, versionado de modelos y registro de métricas. |
-| **API & Backend**         | `fastapi`, `uvicorn`               | Creación de una API REST de alto rendimiento para servir predicciones.   |
-| **Visualización**         | `streamlit`, `plotly`              | Desarrollo de dashboards interactivos para explorar resultados y cohortes. |
-| **Testing & Calidad**     | `pytest`, `hypothesis`             | Pruebas unitarias, de integración y basadas en propiedades.              |
-| **Contenerización**       | `docker`, `docker-compose`         | Empaquetado de la aplicación y sus dependencias para un despliegue aislado y reproducible. |
+#### 6. Ejecución dashboard
+```bash
+streamlit run dashboards/clv_dashboard.py
+```
+
+Swagger disponible en http://localhost:8000/docs.
+
+## 📊 Dashboard interactivo (Streamlit)
+
+### Cómo ejecutarlo
+
+```bash
+# desde la raíz del proyecto
+streamlit run dashboards/clv_dashboard.py
+# abrirá http://localhost:8501
+```
+
+Requiere `streamlit` y `plotly`, ya incluidos en `requirements.txt`.
+
+### Componentes del panel Streamlit
+
+| Sección                       | ¿Qué muestra?                                                         | Interpretación clave                                                                                                   | Preguntas que responde                                          |
+|-------------------------------|-----------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------|
+| **Filtro «País»**             | Selector «Todos» + 38 países                                          | Actualiza simultáneamente heatmap, boxplot y métrica.                                                                  | ¿Cómo cambian retención y CLV según país o región?              |
+| **Filtro «Paleta de color»**  | Opciones: Viridis · Blues · TealGrn · Hot (se puede ampliar)          | Permite al usuario elegir la escala cromática del heatmap para comodidad visual.                                       | —                                                               |
+| **Heatmap de retención**      | Matriz *Cohorte × Mes* → nº clientes activos (escala seleccionada)    | Fila = cohorte de alta; columnas = meses posteriores. Degradado lento = buena retención.                               | ¿Qué cohorte se comporta mejor? ¿Hay picos estacionales claros? |
+| **Boxplot CLV 6 m**           | Distribución y outliers de `clv_6m`                                   | Caja = IQR; bigotes = rango típico; puntos = outliers (valiosos o atípicos).                                           | ¿Cuántos clientes superan £X? ¿Hay concentración de valor?      |
+| **Métrica resumen**           | `CLV` medio de la vista actual (con filtros aplicados)                | Sirve de referencia para fijar CAC máximo, evaluar ROI de campañas, etc.                                               | ¿Cuál es el valor medio por cliente en el segmento filtrado?    |
+
+
+### Cómo sacar insight rápidamente
+1. Selecciona “Todos” → revisa la diagonal principal del heatmap:
+    - 60 % la 1ª columna ✔️
+    - <10 % a los 6 meses ❌ (alerta de churn).
+2. Elige un país concreto (p.ej. Netherlands).
+    - Observa si mantiene o cae más rápido vs global.
+3. Mira el boxplot:
+    - Muchos puntos por encima del upper whisker = oportunidad de campaña VIP.
+    - Caja muy baja = ingresos concentrados en pocos clientes (“80/20”).
+
+En dos frases:
+El dashboard traduce datos transaccionales y predicciones de CLV en visualizaciones accionables para Marketing. Permite comparar retención por cohorte, detectar canales estacionales y evaluar el potencial de ingresos futuro por país o segmento.
+
+## Tecnologías y librerías empleadas
+
+| Categoría | Paquetes clave | Función |
+|-----------|----------------|---------|
+| **Manipulación de datos** | `pandas 2.3`, `pyarrow` | Limpieza y Parquet (Snappy). |
+| **Modelos CLV** | `lifetimes` (BetaGeoFitter, GammaGammaFitter) | Probabilidad de compra futura y ticket medio. |
+| **Experimentos** | `mlflow` | Runs, parámetros, métricas, artefactos. |
+| **Serialización** | `joblib` | Guarda modelos para carga rápida. |
+| **Servicio web** | `fastapi`, `uvicorn`, `pydantic` | API + validación + Swagger. |
+| **Dashboard** | `streamlit`, `plotly` | Cohortes y CLV interactivos (próximo). |
+| **Contenedorización** | `docker` | Empaquetar API + modelos. |
+| **Testing/calidad** | `pytest`, `black`, `flake8` | Calidad y CI (por configurar). |
+
+## Detalle de los modelos
+
+| Modelo | Variables que consume | Hiperparámetros | Salida clave |
+|--------|----------------------|-----------------|--------------|
+| **BetaGeoFitter** | `frequency`, `recency`, `T` | `penalizer_coef = 0.001` | `pred_purchases_6m` – nº esperado de compras en 180 d |
+| **GammaGammaFitter** | `frequency`, `monetary` | `penalizer_coef = 0.001` | `exp_avg_sales` – gasto medio esperado por compra |
+| **CLV 6 m** | Resultado de ambos modelos | — | `clv_6m = pred_purchases_6m × exp_avg_sales` |
 
 ## Buenas prácticas incluidas
 - Copy-on-Write en Pandas 2.3 para memoria eficiente.
@@ -238,22 +318,15 @@ Este proyecto está diseñado para ser construido de manera incremental. A conti
 | **Streamlit** | Framework Python para apps web de datos | Construiremos un panel interactivo donde el equipo de negocio explore cohortes y distribuciones de CLV. |
 | **Plotly** | Librería de gráficas interactivas | Generará los charts (curvas de retención, boxplots, etc.) dentro del dashboard de Streamlit. |
 
-**Idea global**  
-1. **ETL** prepara los datos → 2. **Modelos** (Pareto/NBD y/o XGBoost) calculan CLV → 3. **MLflow** registra todo → 4. **FastAPI + Docker** sirven el modelo a otros sistemas (**CRM**, **ESP**, **BI**) → 5. **Streamlit/Plotly** ofrecen una interfaz visual para analistas y marketers.
-
 ## Contribuciones
 
-Las pull-requests son bienvenidas. Antes de proponer cambios:
-	1.	Crea un issue con descripción concisa.
-	2.	Sigue el estilo de commit feat|fix|docs(scope): mensaje.
-	3.	Verifica que pytest y flake8 pasen localmente.
+Las pull-requests son bienvenidas. 
+
+Antes de proponer cambios:
+1. Crea un issue con descripción concisa.
+2. Sigue el estilo de commit feat|fix|docs(scope): mensaje.
+3. Verifica que pytest y flake8 pasen localmente.
 
 ## Licencia
 
 This project is licensed under the MIT License.
-
-## Referencias clave
-- Fader, Sarmi & Hardie – Customer-Base Analysis in a Discrete-Time Framework.
-- Wes McKinney – Python for Data Analysis (3.ª ed.).
-- Sitio oficial de Pandas 2.3 – guía Copy-on-Write.
-- Blog B. Coussement – “CLV Models with Pareto/NBD”.
