@@ -144,7 +144,7 @@ clv-forecaster/
 ## Instalación rápida
 
 ```bash
-git clone https://github.com/<tu-user>/clv-forecaster.git
+git clone https://github.com/luuuisc/clv-forecaster
 cd clv-forecaster
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
@@ -193,7 +193,7 @@ CSV bruto  ──▶  etl_clv.ipynb  ──▶  clv.parquet
 
 #### 1. Clonar y crear venv
 ```bash
-git clone https://github.com/tu-usuario/clv-forecaster.git && cd clv-forecaster
+git clone https://github.com/luuuisc/clv-forecaster && cd clv-forecaster
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 ```
@@ -261,6 +261,68 @@ Requiere `streamlit` y `plotly`, ya incluidos en `requirements.txt`.
 En dos frases:
 El dashboard traduce datos transaccionales y predicciones de CLV en visualizaciones accionables para Marketing. Permite comparar retención por cohorte, detectar canales estacionales y evaluar el potencial de ingresos futuro por país o segmento.
 
+## 🧪 ¿Cómo probar el endpoint `/predict_clv`?
+
+### Opción A ─ Swagger UI (recomendado)
+
+1. **Inicia la API**  
+   ```bash
+   uvicorn src.api.main:app --reload
+   ```
+
+2. Abre tu navegador en http://localhost:8000/docs.
+
+    Swagger cargará automáticamente todos los endpoints.
+
+3. En la sección POST /predict_clv
+    - Haz clic y pulsa Try it out.
+    - Rellena el JSON de ejemplo:
+        ```bash
+        {
+        "frequency": 3,
+        "recency": 120,
+        "T": 365,
+        "monetary": 40.0
+        }
+        ```
+    - Pulsa Execute.
+
+        En “Response body” verás algo como:
+        ```bash
+        {
+        "clv_6m": 48.1
+        }
+        ```
+Interpretación
+El cliente (3 compras, última hace 120 d, 1 año de antigüedad, ticket medio £40) se espera que genere £48.1 en los próximos 6 meses.
+
+### Opción B ─ cURL / Terminal
+
+```bash
+curl -X POST http://localhost:8000/predict_clv \
+     -H "Content-Type: application/json" \
+     -d '{ "frequency": 3, "recency": 120, "T": 365, "monetary": 40.0 }'
+```
+
+Respuesta:
+
+```bash
+{"clv_6m":48.1}
+```
+
+(Puedes sustituir los valores para testear distintos perfiles de cliente.)
+
+### Campos de entrada
+
+Campo	Significado
+frequency	Nº de compras históricas del cliente
+recency	Días desde la última compra
+T	Edad del cliente (días entre 1ª compra y fecha de corte)
+monetary	Ticket medio histórico (GBP)
+
+La API valida estos campos con Pydantic; si falta alguno o el tipo es incorrecto devolverá 422 Unprocessable Entity.
+
+
 ## Tecnologías y librerías empleadas
 
 | Categoría | Paquetes clave | Función |
@@ -281,13 +343,6 @@ El dashboard traduce datos transaccionales y predicciones de CLV en visualizacio
 | **BetaGeoFitter** | `frequency`, `recency`, `T` | `penalizer_coef = 0.001` | `pred_purchases_6m` – nº esperado de compras en 180 d |
 | **GammaGammaFitter** | `frequency`, `monetary` | `penalizer_coef = 0.001` | `exp_avg_sales` – gasto medio esperado por compra |
 | **CLV 6 m** | Resultado de ambos modelos | — | `clv_6m = pred_purchases_6m × exp_avg_sales` |
-
-## Buenas prácticas incluidas
-- Copy-on-Write en Pandas 2.3 para memoria eficiente.
-- Tipado con type hints y mypy.
-- Pre-commit hooks: black, flake8, isort.
-- Tests de rendimiento (pytest-benchmark) en modelos.
-- Continuous Integration (GitHub Actions) → lint + tests + build Docker.
 
 ## 🗺️ Roadmap Sugerido
 
