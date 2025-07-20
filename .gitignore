@@ -1,0 +1,29 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.pyc
+
+# Virtual environment
+.venv/
+venv/
+ENV/
+env/
+
+# Data files
+
+# MLflow
+mlruns/
+
+# IDE / Editor specific
+.vscode/
+.idea/
+
+# Notebook checkpoints
+.ipynb_checkpoints
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# Mac OS
+.DS_Store

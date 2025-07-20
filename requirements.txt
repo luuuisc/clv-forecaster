@@ -1,0 +1,35 @@
+# ──────────────────── Núcleo ETL ────────────────────
+pandas==2.3.1          
+pyarrow==20.0.0        
+openpyxl==3.1.5        
+numpy>=1.26            
+
+# ─────────────── Descarga de datasets (Kaggle) ───────────────
+kaggle==1.7.4.5        
+
+# ───────────────️️ Notebooks & Exploración ───────────────
+jupyterlab==4.4.4      
+matplotlib>=3.9
+seaborn==0.13.2
+plotly>=5.21           
+streamlit>=1.35
+
+# ────────────────── Modelado de CLV ──────────────────
+lifetimes==0.11.3      
+xgboost==2.1.0
+scikit-learn>=1.5
+
+# ─────────────── API & MLOps / Serving ───────────────
+fastapi==0.111.0
+uvicorn[standard]==0.30.1
+pydantic>=2.6
+mlflow==3.1.1          
+docker>=7.1           
+
+# ───────────────────── Dev & Testing ─────────────────────
+pytest>=8.2
+hypothesis>=6.102
+black>=24.4
+flake8>=7.0
+isort>=5.13
+mypy>=1.9
