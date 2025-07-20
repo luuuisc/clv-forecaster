@@ -287,14 +287,16 @@ El dashboard traduce datos transaccionales y predicciones de CLV en visualizacio
         ```
     - Pulsa Execute.
 
-        En “Response body” verás algo como:
+        En Response body verás algo como:
         ```bash
         {
-        "clv_6m": 48.1
+        "clv_6m": 12.48
         }
         ```
-Interpretación
-El cliente (3 compras, última hace 120 d, 1 año de antigüedad, ticket medio £40) se espera que genere £48.1 en los próximos 6 meses.
+        
+**Interpretación**
+
+El cliente (3 compras, última hace 120 d, 1 año de antigüedad, ticket medio £40) se espera que genere £12.48 en los próximos 6 meses.
 
 ### Opción B ─ cURL / Terminal
 
@@ -307,21 +309,21 @@ curl -X POST http://localhost:8000/predict_clv \
 Respuesta:
 
 ```bash
-{"clv_6m":48.1}
+{"clv_6m":12.48}
 ```
 
 (Puedes sustituir los valores para testear distintos perfiles de cliente.)
 
 ### Campos de entrada
 
-Campo	Significado
-frequency	Nº de compras históricas del cliente
-recency	Días desde la última compra
-T	Edad del cliente (días entre 1ª compra y fecha de corte)
-monetary	Ticket medio histórico (GBP)
+| Campo       | Significado                                                                                   |
+|-------------|------------------------------------------------------------------------------------------------|
+| `frequency` | Número de compras históricas del cliente                                                       |
+| `recency`   | Días transcurridos desde la última compra                                                      |
+| `T`         | Antigüedad del cliente en días (diferencia entre primera compra y fecha de corte del dataset) |
+| `monetary`  | Ticket medio histórico en GBP (importe medio gastado por compra)                               |
 
 La API valida estos campos con Pydantic; si falta alguno o el tipo es incorrecto devolverá 422 Unprocessable Entity.
-
 
 ## Tecnologías y librerías empleadas
 
